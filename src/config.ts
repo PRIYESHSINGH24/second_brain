@@ -1,0 +1,1 @@
+export const jwt = "12345"
