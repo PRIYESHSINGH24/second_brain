@@ -1,1 +1,1 @@
-export const jwt = "12345"
+export const jwt_pasword = "12345"
