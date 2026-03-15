@@ -67,28 +67,32 @@ app.post("/api/v1/signin",async (req, res) => {
 
 app.post("/api/v1/content",userMiddleware, async (req, res) => {
     try {
-    const link = req.body.link;
-    const type = req.body.type;
+    const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+    const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
+    const link = typeof req.body.link === "string" ? req.body.link.trim() : "";
+    const type = typeof req.body.type === "string" ? req.body.type.trim() : "note";
 
-    if (!link || !type) {
+    if (!content) {
         return res.status(400).json({
-            message: "link and type are required"
+            message: "note content is required"
         });
     }
 
     await contentModel.create({
+        title: title || "Untitled note",
+        content,
         link,
-        type,
+        type: type || "note",
         //@ts-ignore
         userId: req.userId,
         tags: []
     })
     return res.json({
-        message: "content added"
+        message: "note added"
     })
     } catch (error) {
         return res.status(500).json({
-            message: "failed to add content"
+            message: "failed to add note"
         });
     }
 })
@@ -101,13 +105,14 @@ app.get("/api/v1/content",userMiddleware , async (req, res) => {
         const content = await contentModel.find({
             userId: userId
         }).populate("userId", "username ")
+          .sort({ createdAt: -1 })
 
         return res.json({
             content
         });
     } catch (error) {
         return res.status(500).json({
-            message: "failed to fetch content"
+            message: "failed to fetch notes"
         });
     }
 })
@@ -131,16 +136,16 @@ app.delete("/api/v1/content",userMiddleware, async (req, res) => {
 
         if (!deleted) {
             return res.status(404).json({
-                message: "content not found"
+                message: "note not found"
             });
         }
 
         return res.json({
-            message: "content deleted"
+            message: "note deleted"
         });
     } catch (error) {
         return res.status(500).json({
-            message: "failed to delete content"
+            message: "failed to delete note"
         });
     }
 })
@@ -194,7 +199,7 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
             });
         }
 
-        const content = await contentModel.find({ userId: link.userId });
+        const content = await contentModel.find({ userId: link.userId }).sort({ createdAt: -1 });
         const user = await userModel.findById(link.userId);
 
         return res.json({

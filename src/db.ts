@@ -1,4 +1,4 @@
-import mongoose, { model, Model, Schema} from "mongoose";
+import mongoose, { model, Schema } from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/secondbrain";
 
@@ -21,12 +21,14 @@ const UserSchema = new Schema({
 export const userModel = model("User", UserSchema)
 
 const contentSchema = new Schema({
-    type: String,
-    title: String,
-    content: String,
-    link: String,
+    type: { type: String, default: "note" },
+    title: { type: String, default: "Untitled note" },
+    content: { type: String, required: true },
+    link: { type: String, default: "" },
     tags: [{type: Schema.Types.ObjectId, ref: "Tag"}],
     userId: {type: Schema.Types.ObjectId, ref: "User", required: true}
+}, {
+    timestamps: true
 })
 
 
