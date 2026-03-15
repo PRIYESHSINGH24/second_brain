@@ -1,15 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;700;800&display=swap");
 
 :root {
-  --bg-0: #f7f2e7;
-  --bg-1: #ffd9c0;
-  --bg-2: #c8e6ff;
-  --ink: #1a1d2d;
-  --muted: #48506b;
-  --card: rgba(255, 255, 255, 0.72);
-  --line: rgba(18, 26, 41, 0.15);
-  --accent: #ff5d2a;
-  --accent-deep: #e24618;
+  --bg-0: #f4f0e8;
+  --bg-1: #ffc7a0;
+  --bg-2: #b9dcff;
+  --ink: #171b2b;
+  --muted: #4a526d;
+  --card: rgba(255, 255, 255, 0.78);
+  --line: rgba(18, 26, 41, 0.12);
+  --accent: #ff6b2f;
+  --accent-deep: #df4f1f;
+  --accent-soft: #ffe0d2;
   --danger: #be1e2d;
   --danger-deep: #951728;
   --ok: #126d56;
@@ -29,11 +30,158 @@ body {
   min-height: 100vh;
 }
 
+.auth-shell,
 .page-shell {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem;
   position: relative;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+}
+
+.auth-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  align-items: stretch;
+}
+
+.auth-hero {
+  padding: 2rem;
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(26, 29, 45, 0.92), rgba(36, 73, 84, 0.88));
+  color: #f5f1ea;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 25px 80px rgba(17, 25, 40, 0.18);
+}
+
+.auth-hero .eyebrow,
+.auth-hero p {
+  color: rgba(245, 241, 234, 0.82);
+}
+
+.auth-hero h1 {
+  font-family: "Syne", sans-serif;
+  font-size: clamp(2rem, 4vw, 4rem);
+  line-height: 1;
+  max-width: 10ch;
+  margin: 0.35rem 0 1rem;
+}
+
+.feature-ribbon {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.feature-ribbon span {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+}
+
+.workspace-preview {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+.preview-card {
+  border-radius: 20px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.preview-card-main {
+  transform: rotate(-1deg);
+}
+
+.preview-card p {
+  margin: 0.35rem 0 0;
+}
+
+.preview-label {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(245, 241, 234, 0.7);
+}
+
+.auth-panel {
+  border-radius: 28px;
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.auth-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(26, 29, 45, 0.06);
+}
+
+.tab {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+.tab.active {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.auth-form {
+  margin-top: 0.25rem;
+}
+
+.status-panel {
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.85rem 1rem;
+}
+
+.status-panel span {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ok);
+  margin-bottom: 0.35rem;
+}
+
+.status-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.public-preview {
+  border-radius: 24px;
+}
+
+.app-shell {
+  padding-top: 1rem;
 }
 
 .aurora {
@@ -82,6 +230,23 @@ body {
   color: var(--muted);
 }
 
+.workspace-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.workspace-stats span {
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(23, 27, 43, 0.1);
+  color: #2a3147;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .grid {
   display: grid;
   gap: 1rem;
@@ -94,11 +259,29 @@ body {
   padding: 1rem;
   background: var(--card);
   backdrop-filter: blur(6px);
-  box-shadow: 0 15px 50px rgba(14, 24, 37, 0.08);
+  box-shadow: 0 14px 40px rgba(14, 24, 37, 0.08);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 60px rgba(14, 24, 37, 0.12);
 }
 
 .lift {
   animation: rise 500ms ease both;
+}
+
+.grid .card:nth-child(1) {
+  animation-delay: 70ms;
+}
+
+.grid .card:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.grid .card:nth-child(3) {
+  animation-delay: 230ms;
 }
 
 .card:nth-child(1),
@@ -107,11 +290,11 @@ body {
 }
 
 .notes-card,
-.auth-card {
+.workspace-card {
   grid-column: span 8;
 }
 
-.auth-card {
+.workspace-card {
   grid-column: span 4;
 }
 
@@ -154,6 +337,15 @@ select {
   border-radius: 12px;
   padding: 0.65rem 0.75rem;
   background: rgba(255, 255, 255, 0.9);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: rgba(255, 107, 47, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 107, 47, 0.14);
 }
 
 textarea {
@@ -166,15 +358,15 @@ button {
   border-radius: 12px;
   padding: 0.65rem 0.9rem;
   cursor: pointer;
-  background: var(--accent);
+  background: linear-gradient(140deg, var(--accent), var(--accent-deep));
   color: #fff;
   font-weight: 700;
-  transition: transform 120ms ease, background 120ms ease;
+  transition: transform 120ms ease, filter 120ms ease;
 }
 
 button:hover {
   transform: translateY(-1px);
-  background: var(--accent-deep);
+  filter: brightness(0.97);
 }
 
 button:disabled {
@@ -186,6 +378,10 @@ button.ghost {
   background: rgba(255, 255, 255, 0.5);
   color: var(--ink);
   border: 1px solid var(--line);
+}
+
+button.secondary {
+  background: linear-gradient(140deg, #2a7bb8, #1f5f90);
 }
 
 button.danger {
@@ -202,6 +398,21 @@ button.danger:hover {
   flex-wrap: wrap;
 }
 
+.workspace-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.workspace-meta span {
+  font-weight: 700;
+  color: var(--ok);
+}
+
 .list-wrap {
   margin-top: 0.75rem;
   display: grid;
@@ -212,13 +423,13 @@ button.danger:hover {
 
 .item {
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.7rem;
+  border-radius: 14px;
+  padding: 0.85rem;
   display: flex;
   justify-content: space-between;
   gap: 0.8rem;
   align-items: center;
-  background: rgba(255, 255, 255, 0.8);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.85), rgba(255, 249, 245, 0.9));
 }
 
 .item p {
@@ -238,11 +449,39 @@ button.danger:hover {
 .note-copy {
   display: grid;
   gap: 0.35rem;
+  flex: 1;
+}
+
+.note-copy strong {
+  font-size: 1.02rem;
 }
 
 .note-copy a {
   color: #0c4b97;
   overflow-wrap: anywhere;
+}
+
+.note-actions {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 140px;
+}
+
+.empty-note-state {
+  border: 1px dashed rgba(23, 27, 43, 0.18);
+  border-radius: 14px;
+  padding: 1rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(255, 224, 210, 0.35));
+}
+
+.empty-note-state strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.empty-note-state p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .share-panel {
@@ -282,6 +521,16 @@ button.danger:hover {
   color: var(--muted);
 }
 
+.share-box-inline {
+  margin-top: 0.3rem;
+  border-style: solid;
+  background: linear-gradient(145deg, rgba(18, 109, 86, 0.1), rgba(255, 255, 255, 0.8));
+}
+
+.featured-public-note {
+  margin-top: 0.75rem;
+}
+
 .owner {
   margin: 0.6rem 0 0;
   color: var(--ok);
@@ -319,9 +568,19 @@ button.danger:hover {
 }
 
 @media (max-width: 960px) {
-  .auth-card,
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-card,
   .notes-card,
   .public-card {
     grid-column: span 12;
+  }
+
+  .note-actions {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
   }
 }

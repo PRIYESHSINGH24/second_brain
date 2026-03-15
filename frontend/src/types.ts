@@ -4,6 +4,7 @@ export type ContentItem = {
   title?: string;
   content?: string;
   link?: string;
+  sharedHash?: string;
   tags: string[];
   createdAt?: string;
   updatedAt?: string;
@@ -18,4 +19,9 @@ export type ContentItem = {
 export type PublicBrainResponse = {
   username?: string;
   content: ContentItem[];
+};
+
+export type PublicNoteResponse = {
+  username?: string;
+  note: ContentItem;
 };

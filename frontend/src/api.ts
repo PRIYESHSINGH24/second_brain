@@ -1,4 +1,4 @@
-import type { ContentItem, PublicBrainResponse } from "./types";
+import type { ContentItem, PublicBrainResponse, PublicNoteResponse } from "./types";
 
 type CreateNoteInput = {
   title: string;
@@ -95,4 +95,19 @@ export async function updateShare(token: string, share: boolean): Promise<{ hash
 export async function getSharedBrain(hash: string): Promise<PublicBrainResponse> {
   const response = await fetch(`${API_BASE}/api/v1/brain/${hash}`);
   return parseResponse<PublicBrainResponse>(response);
+}
+
+export async function shareNote(token: string, contentId: string): Promise<{ hash: string }> {
+  const response = await fetch(`${API_BASE}/api/v1/content/${contentId}/share`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(token)
+    }
+  });
+  return parseResponse<{ hash: string }>(response);
+}
+
+export async function getSharedNote(hash: string): Promise<PublicNoteResponse> {
+  const response = await fetch(`${API_BASE}/api/v1/content/share/${hash}`);
+  return parseResponse<PublicNoteResponse>(response);
 }

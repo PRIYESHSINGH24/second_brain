@@ -1,225 +1,269 @@
 import express from "express";
-import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
-import { userModel, connectDB, contentModel, linkModel } from "./db.js";
+import { connectDB, contentModel, linkModel, userModel } from "./db.js";
 import { userMiddleware } from "./middleware.js";
-
-const JWT_PASSWORD = "12345"
+import { jwt_pasword } from "./config.js";
 
 const app = express();
+
 app.use(express.json());
 
+app.post("/api/v1/signup", async (req, res) => {
+	const username = req.body.username;
+	const password = req.body.password;
 
-app.post("/api/v1/signup",async (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
-    
-    try {
-        await userModel.create({
-            username: username,
-            password: password
-        })
-        res.json({
-        message: "user signed up successfully"
-    })
+	if (!username || !password) {
+		return res.status(400).json({
+			message: "username and password are required"
+		});
+	}
 
-    } catch (error) {
-        res.status(500).json({
-            message: "error signing up user"
-          })
+	try {
+		await userModel.create({
+			username,
+			password
+		});
 
+		return res.json({
+			message: "user signed up successfully"
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "error signing up user"
+		});
+	}
+});
 
-    }
+app.post("/api/v1/signin", async (req, res) => {
+	const username = req.body.username;
+	const password = req.body.password;
 
-})
+	const existinguser = await userModel.findOne({
+		username,
+		password
+	});
 
+	if (!existinguser) {
+		return res.status(403).json({
+			message: "invalid username or password"
+		});
+	}
 
-app.post("/api/v1/signin",async (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
-    const existinguser = await userModel.findOne({
-        username,
-        password
-    })
-    if(existinguser){
-        const token = jwt.sign(
+	const token = jwt.sign(
+		{
+			id: existinguser._id
+		},
+		jwt_pasword
+	);
 
-            {
-                id : existinguser._id
-            
-            } , JWT_PASSWORD)
-        res.json({
-            message: "user signed in successfully",
-            token: token
-        })
-    }
-    else {
-        res.status(403).json({
-            message: "invalid username or password"
-        })
-    }
+	return res.json({
+		message: "user signed in successfully",
+		token
+	});
+});
 
+app.post("/api/v1/content", userMiddleware, async (req, res) => {
+	try {
+		const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+		const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
+		const link = typeof req.body.link === "string" ? req.body.link.trim() : "";
+		const type = typeof req.body.type === "string" ? req.body.type.trim() : "note";
 
+		if (!content) {
+			return res.status(400).json({
+				message: "note content is required"
+			});
+		}
 
-})
+		await contentModel.create({
+			title: title || "Untitled note",
+			content,
+			link,
+			type: type || "note",
+			// @ts-ignore
+			userId: req.userId,
+			tags: []
+		});
 
+		return res.json({
+			message: "note added"
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to add note"
+		});
+	}
+});
 
-app.post("/api/v1/content",userMiddleware, async (req, res) => {
-    try {
-    const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
-    const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
-    const link = typeof req.body.link === "string" ? req.body.link.trim() : "";
-    const type = typeof req.body.type === "string" ? req.body.type.trim() : "note";
+app.get("/api/v1/content", userMiddleware, async (req, res) => {
+	try {
+		const content = await contentModel
+			.find({
+				// @ts-ignore
+				userId: req.userId
+			})
+			.populate("userId", "username")
+			.sort({ createdAt: -1 });
 
-    if (!content) {
-        return res.status(400).json({
-            message: "note content is required"
-        });
-    }
+		return res.json({
+			content
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to fetch notes"
+		});
+	}
+});
 
-    await contentModel.create({
-        title: title || "Untitled note",
-        content,
-        link,
-        type: type || "note",
-        //@ts-ignore
-        userId: req.userId,
-        tags: []
-    })
-    return res.json({
-        message: "note added"
-    })
-    } catch (error) {
-        return res.status(500).json({
-            message: "failed to add note"
-        });
-    }
-})
+app.delete("/api/v1/content", userMiddleware, async (req, res) => {
+	try {
+		const contentId = req.body.contentId;
 
+		if (!contentId) {
+			return res.status(400).json({
+				message: "contentId is required"
+			});
+		}
 
-app.get("/api/v1/content",userMiddleware , async (req, res) => {
-    try {
-        //@ts-ignore
-        const userId = req.userId;
-        const content = await contentModel.find({
-            userId: userId
-        }).populate("userId", "username ")
-          .sort({ createdAt: -1 })
+		const deleted = await contentModel.findOneAndDelete({
+			_id: contentId,
+			// @ts-ignore
+			userId: req.userId
+		});
 
-        return res.json({
-            content
-        });
-    } catch (error) {
-        return res.status(500).json({
-            message: "failed to fetch notes"
-        });
-    }
-})
+		if (!deleted) {
+			return res.status(404).json({
+				message: "note not found"
+			});
+		}
 
+		return res.json({
+			message: "note deleted"
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to delete note"
+		});
+	}
+});
 
-app.delete("/api/v1/content",userMiddleware, async (req, res) => {
-    try {
-        const contentId = req.body.contentId;
-        if (!contentId) {
-            return res.status(400).json({
-                message: "contentId is required"
-            });
-        }
+app.post("/api/v1/content/:contentId/share", userMiddleware, async (req, res) => {
+	try {
+		const contentId = req.params.contentId;
+		const note = await contentModel.findOne({
+			_id: contentId,
+			// @ts-ignore
+			userId: req.userId
+		});
 
-        //@ts-ignore
-        const userId = req.userId;
-        const deleted = await contentModel.findOneAndDelete({
-            _id: contentId,
-            userId: userId
-        });
+		if (!note) {
+			return res.status(404).json({
+				message: "note not found"
+			});
+		}
 
-        if (!deleted) {
-            return res.status(404).json({
-                message: "note not found"
-            });
-        }
+		if (!note.sharedHash) {
+			note.sharedHash = randomBytes(6).toString("hex");
+			await note.save();
+		}
 
-        return res.json({
-            message: "note deleted"
-        });
-    } catch (error) {
-        return res.status(500).json({
-            message: "failed to delete note"
-        });
-    }
-})
-
+		return res.json({
+			hash: note.sharedHash
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to share note"
+		});
+	}
+});
 
 app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
-    try {
-        const share = req.body.share;
-        //@ts-ignore
-        const userId = req.userId;
+	try {
+		const share = req.body.share;
+		// @ts-ignore
+		const userId = req.userId;
 
-        if (share) {
-            const existingLink = await linkModel.findOne({ userId: userId });
-            if (existingLink) {
-                return res.json({
-                    hash: existingLink.hash
-                });
-            }
+		if (share) {
+			const existingLink = await linkModel.findOne({ userId });
 
-            const hash = randomBytes(6).toString("hex");
-            await linkModel.create({
-                hash,
-                userId: userId
-            });
+			if (existingLink) {
+				return res.json({
+					hash: existingLink.hash
+				});
+			}
 
-            return res.json({
-                hash
-            });
-        }
+			const hash = randomBytes(6).toString("hex");
+			await linkModel.create({
+				hash,
+				userId
+			});
 
-        await linkModel.findOneAndDelete({ userId: userId });
-        return res.json({
-            message: "removed link"
-        });
-    } catch (error) {
-        return res.status(500).json({
-            message: "failed to update share link"
-        });
-    }
-})
+			return res.json({
+				hash
+			});
+		}
 
+		await linkModel.findOneAndDelete({ userId });
+		return res.json({
+			message: "removed link"
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to update share link"
+		});
+	}
+});
 
 app.get("/api/v1/brain/:shareLink", async (req, res) => {
-    try {
-        const hash = req.params.shareLink;
-        const link = await linkModel.findOne({ hash: hash });
+	try {
+		const hash = req.params.shareLink;
+		const link = await linkModel.findOne({ hash });
 
-        if (!link) {
-            return res.status(404).json({
-                message: "invalid share link"
-            });
-        }
+		if (!link) {
+			return res.status(404).json({
+				message: "invalid share link"
+			});
+		}
 
-        const content = await contentModel.find({ userId: link.userId }).sort({ createdAt: -1 });
-        const user = await userModel.findById(link.userId);
+		const content = await contentModel.find({ userId: link.userId }).sort({ createdAt: -1 });
+		const user = await userModel.findById(link.userId);
 
-        return res.json({
-            username: user?.username,
-            content
-        });
-    } catch (error) {
-        return res.status(500).json({
-            message: "failed to fetch shared brain"
-        });
-    }
+		return res.json({
+			username: user?.username,
+			content
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to fetch shared brain"
+		});
+	}
+});
 
-})
+app.get("/api/v1/content/share/:shareLink", async (req, res) => {
+	try {
+		const hash = req.params.shareLink;
+		const sharedNote = await contentModel.findOne({ sharedHash: hash }).populate("userId", "username");
 
+		if (!sharedNote) {
+			return res.status(404).json({
+				message: "invalid note share link"
+			});
+		}
 
-
+		return res.json({
+			username: typeof sharedNote.userId === "object" && "username" in sharedNote.userId ? sharedNote.userId.username : undefined,
+			note: sharedNote
+		});
+	} catch (error) {
+		return res.status(500).json({
+			message: "failed to fetch shared note"
+		});
+	}
+});
 
 connectDB().then(() => {
-    app.listen(3000, () => {
-        console.log("server is running on port 3000")
-    })
-})
-
+	app.listen(3000, () => {
+		console.log("server is running on port 3000");
+	});
+});

@@ -4,6 +4,8 @@ import {
   deleteContent,
   getContent,
   getSharedBrain,
+  getSharedNote,
+  shareNote,
   signin,
   signup,
   updateShare
@@ -35,19 +37,37 @@ export default function App() {
   const [status, setStatus] = useState("Ready");
   const [shareHash, setShareHash] = useState("");
   const [lookupHash, setLookupHash] = useState("");
+  const [noteLookupHash, setNoteLookupHash] = useState("");
   const [publicItems, setPublicItems] = useState<ContentItem[]>([]);
   const [publicOwner, setPublicOwner] = useState("");
+  const [publicNote, setPublicNote] = useState<ContentItem | null>(null);
+  const [publicNoteOwner, setPublicNoteOwner] = useState("");
+
+  const sharedNotesCount = useMemo(() => items.filter((item) => Boolean(item.sharedHash)).length, [items]);
 
   const sharedUrl = useMemo(() => {
     if (!shareHash) return "";
     return `${window.location.origin}?share=${shareHash}`;
   }, [shareHash]);
 
+  function getNoteSharedUrl(hash: string): string {
+    return `${window.location.origin}?note=${hash}`;
+  }
+
   useEffect(() => {
-    const hashFromQuery = new URLSearchParams(window.location.search).get("share");
-    if (hashFromQuery) {
-      setLookupHash(hashFromQuery);
-      void handleLookup(hashFromQuery);
+    const params = new URLSearchParams(window.location.search);
+    const noteHashFromQuery = params.get("note");
+    const boardHashFromQuery = params.get("share");
+
+    if (noteHashFromQuery) {
+      setNoteLookupHash(noteHashFromQuery);
+      void handleLookupNote(noteHashFromQuery);
+      return;
+    }
+
+    if (boardHashFromQuery) {
+      setLookupHash(boardHashFromQuery);
+      void handleLookup(boardHashFromQuery);
     }
   }, []);
 
@@ -124,6 +144,28 @@ export default function App() {
     }
   }
 
+  async function handleShareNote(contentId: string) {
+    if (!token) return;
+
+    setStatus("Generating note share link...");
+    try {
+      const data = await shareNote(token, contentId);
+      setItems((currentItems) =>
+        currentItems.map((item) =>
+          item._id === contentId
+            ? {
+                ...item,
+                sharedHash: data.hash
+              }
+            : item
+        )
+      );
+      setStatus("Note share link ready.");
+    } catch (error) {
+      setStatus((error as Error).message);
+    }
+  }
+
   async function handleShare(enable: boolean) {
     if (!token) return;
     setStatus(enable ? "Generating share link..." : "Disabling share link...");
@@ -157,6 +199,26 @@ export default function App() {
     }
   }
 
+  async function handleLookupNote(value?: string) {
+    const targetHash = value ?? noteLookupHash;
+    if (!targetHash) {
+      setStatus("Enter a note share hash first.");
+      return;
+    }
+
+    setStatus("Fetching shared note...");
+    try {
+      const data = await getSharedNote(targetHash);
+      setPublicNote(data.note);
+      setPublicNoteOwner(data.username ?? "unknown");
+      setStatus(`Loaded shared note for ${data.username ?? "unknown"}.`);
+    } catch (error) {
+      setStatus((error as Error).message);
+      setPublicNote(null);
+      setPublicNoteOwner("");
+    }
+  }
+
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
     setToken("");
@@ -164,58 +226,125 @@ export default function App() {
     setStatus("Signed out.");
   }
 
+  if (!token) {
+    return (
+      <div className="auth-shell">
+        <div className="aurora" />
+        <div className="grid-lines" />
+
+        <main className="auth-layout">
+          <section className="auth-hero lift">
+            <p className="eyebrow">Private Workspace</p>
+            <h1>Think freely in private. Share only what matters.</h1>
+            <p>
+              Welcome to your personal thinking studio. Sign in or create an account to enter a focused notes
+              space where ideas stay private by default and sharing is always your choice.
+            </p>
+
+            <div className="feature-ribbon">
+              <span>Private By Default</span>
+              <span>Fast Workspace Access</span>
+              <span>One-Click Note Sharing</span>
+            </div>
+
+            <div className="workspace-preview">
+              <div className="preview-card preview-card-main">
+                <span className="preview-label">Private workspace</span>
+                <strong>Launch plan: week-by-week strategy</strong>
+                <p>Capture drafts, links, and ideas in one calm workspace only you can see.</p>
+              </div>
+              <div className="preview-card">
+                <span className="preview-label">Share only when needed</span>
+                <p>Publish a single note with a link in seconds, without exposing your full notebook.</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="auth-panel card lift">
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={mode === "signin" ? "tab active" : "tab"}
+                onClick={() => setMode("signin")}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                className={mode === "signup" ? "tab active" : "tab"}
+                onClick={() => setMode("signup")}
+              >
+                Signup
+              </button>
+            </div>
+
+            <h2>{mode === "signin" ? "Enter Private Workspace" : "Create your private workspace"}</h2>
+            <p className="muted">
+              {mode === "signin"
+                ? "Enter your account details to open your private notes workspace."
+                : "Register once, then sign in and start saving private notes."}
+            </p>
+
+            <form onSubmit={handleAuth} className="stack auth-form">
+              <label>
+                Username
+                <input value={username} onChange={(e) => setUsername(e.target.value)} required />
+              </label>
+
+              <label>
+                Password
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </label>
+
+              <button type="submit">{mode === "signin" ? "Open Workspace" : "Create Workspace"}</button>
+            </form>
+
+            <div className="status-panel">
+              <span>Status</span>
+              <p>{status}</p>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="page-shell">
+    <div className="page-shell app-shell">
       <div className="aurora" />
       <div className="grid-lines" />
 
       <header className="hero">
-        <p className="eyebrow">Personal Notes Workspace</p>
-        <h1>Write private notes, then share your whole board with one link</h1>
+        <p className="eyebrow">Private Notes Workspace</p>
+        <h1>Create notes first, then share each note with its own generated link</h1>
         <p>
-          Sign up, log in, capture ideas as text, keep optional references, and generate a public share
-          link directly underneath your note collection.
+          You are logged in now. Write notes, keep optional reference links, delete anything you do not
+          need, and generate a public link on any note card so anyone can read it without logging in.
         </p>
+
+        <div className="workspace-stats">
+          <span>{items.length} Notes</span>
+          <span>{sharedNotesCount} Shared</span>
+          <span>{shareHash ? "Board Sharing On" : "Board Sharing Off"}</span>
+        </div>
       </header>
 
       <main className="grid">
-        <section className="card lift auth-card">
-          <h2>{token ? "Session Active" : "Access Portal"}</h2>
-          <p className="muted">Create an account or sign in to your private notes space.</p>
+        <section className="card lift workspace-card">
+          <h2>Session Active</h2>
+          <p className="muted">Your account is ready. Everything below is private unless you generate a share link.</p>
 
-          <form onSubmit={handleAuth} className="stack">
-            <label>
-              Username
-              <input value={username} onChange={(e) => setUsername(e.target.value)} required />
-            </label>
-
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
-
-            <div className="row">
-              <button type="submit">{mode === "signin" ? "Sign In" : "Create Account"}</button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              >
-                {mode === "signin" ? "Need account?" : "Have account?"}
-              </button>
-            </div>
-
-            {token ? (
-              <button type="button" className="danger" onClick={logout}>
-                Sign Out
-              </button>
-            ) : null}
-          </form>
+          <div className="workspace-meta">
+            <span>@{username || "user"}</span>
+            <button type="button" className="danger" onClick={logout}>
+              Sign Out
+            </button>
+          </div>
         </section>
 
         <section className="card lift notes-card">
@@ -258,7 +387,12 @@ export default function App() {
           </form>
 
           <div className="list-wrap">
-            {items.length === 0 ? <p className="muted">No notes yet.</p> : null}
+            {items.length === 0 ? (
+              <div className="empty-note-state">
+                <strong>No notes yet</strong>
+                <p>Start with one quick thought, plan, or idea. It appears here instantly.</p>
+              </div>
+            ) : null}
             {items.map((item) => (
               <article key={item._id} className="item note-item">
                 <div className="note-copy">
@@ -273,10 +407,21 @@ export default function App() {
                     Owner: {getUserLabel(item)}
                     {item.createdAt ? ` • ${new Date(item.createdAt).toLocaleString()}` : ""}
                   </small>
+                  {item.sharedHash ? (
+                    <div className="share-box share-box-inline">
+                      <p>Shared note URL</p>
+                      <a href={getNoteSharedUrl(item.sharedHash)}>{getNoteSharedUrl(item.sharedHash)}</a>
+                    </div>
+                  ) : null}
                 </div>
-                <button className="danger" onClick={() => void handleDelete(item._id)}>
-                  Delete
-                </button>
+                <div className="note-actions">
+                  <button className="secondary" onClick={() => void handleShareNote(item._id)}>
+                    {item.sharedHash ? "Refresh Link" : "Share Note"}
+                  </button>
+                  <button className="danger" onClick={() => void handleDelete(item._id)}>
+                    Delete
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -308,15 +453,35 @@ export default function App() {
         </section>
 
         <section className="card lift public-card">
-          <h2>Shared Notes Viewer</h2>
-          <p className="muted">Open a generated hash and read another user's notes board.</p>
+          <h2>Public Viewer</h2>
+          <p className="muted">Load a shared note directly or open a whole shared notes board.</p>
 
           <div className="row">
             <input
-              placeholder="Enter share hash"
-              value={lookupHash}
-              onChange={(e) => setLookupHash(e.target.value)}
+              placeholder="Enter note share hash"
+              value={noteLookupHash}
+              onChange={(e) => setNoteLookupHash(e.target.value)}
             />
+            <button onClick={() => void handleLookupNote()}>Load Shared Note</button>
+          </div>
+
+          {publicNote ? (
+            <article className="item public note-item featured-public-note">
+              <div className="note-copy">
+                <strong>{publicNote.title || "Untitled note"}</strong>
+                <p>{publicNote.content || ""}</p>
+                {publicNote.link ? (
+                  <a href={publicNote.link} target="_blank" rel="noreferrer">
+                    {publicNote.link}
+                  </a>
+                ) : null}
+                <small>Shared by @{publicNoteOwner || "unknown"}</small>
+              </div>
+            </article>
+          ) : null}
+
+          <div className="row">
+            <input placeholder="Enter board share hash" value={lookupHash} onChange={(e) => setLookupHash(e.target.value)} />
             <button onClick={() => void handleLookup()}>Load Shared Brain</button>
           </div>
 

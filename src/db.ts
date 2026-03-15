@@ -25,6 +25,7 @@ const contentSchema = new Schema({
     title: { type: String, default: "Untitled note" },
     content: { type: String, required: true },
     link: { type: String, default: "" },
+    sharedHash: { type: String, unique: true, sparse: true },
     tags: [{type: Schema.Types.ObjectId, ref: "Tag"}],
     userId: {type: Schema.Types.ObjectId, ref: "User", required: true}
 }, {
