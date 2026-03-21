@@ -15,6 +15,8 @@ import type { ContentItem } from "./types";
 
 const TOKEN_KEY = "second_brain_token";
 const USER_KEY = "second_brain_user";
+const TOAST_DURATION_MS = 3800;
+const HASH_PATTERN = /^[0-9a-f]{12}$/i;
 
 type AuthMode = "signin" | "signup";
 type NoteType = "all" | "note" | "tweet" | "video" | "article" | "image";
@@ -33,7 +35,7 @@ function useToasts() {
   const push = useCallback((message: string, kind: Toast["kind"] = "info") => {
     const id = ++counter.current;
     setToasts((prev) => [...prev, { id, message, kind }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3800);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), TOAST_DURATION_MS);
   }, []);
   return { toasts, push };
 }
@@ -905,7 +907,11 @@ function Sidebar({
 
 export default function App() {
   const [mode, setMode] = useState<AuthMode>("signin");
-  const [username, setUsername] = useState<string>(() => localStorage.getItem(USER_KEY) ?? "");
+  const [username, setUsername] = useState<string>(() => {
+    const stored = localStorage.getItem(USER_KEY) ?? "";
+    // Basic sanitization: only allow printable ASCII characters
+    return stored.replace(/[^\x20-\x7E]/g, "").slice(0, 64);
+  });
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_KEY) ?? "");
   const [authStatus, setAuthStatus] = useState("Ready");
@@ -959,8 +965,9 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const noteHash = params.get("note");
     const brainHash = params.get("share");
-    if (noteHash) void handleLookupNote(noteHash);
-    else if (brainHash) void handleLookupBrain(brainHash);
+    // Validate hashes match the expected 12-character hex pattern before using them
+    if (noteHash && HASH_PATTERN.test(noteHash)) void handleLookupNote(noteHash);
+    else if (brainHash && HASH_PATTERN.test(brainHash)) void handleLookupBrain(brainHash);
   }, []);
 
   useEffect(() => {
