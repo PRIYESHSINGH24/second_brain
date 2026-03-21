@@ -15,6 +15,7 @@ import type { ContentItem } from "./types";
 const TOKEN_KEY = "second_brain_token";
 
 type AuthMode = "signin" | "signup";
+type PublicViewMode = "none" | "note" | "board";
 
 function getUserLabel(content: ContentItem): string {
   if (typeof content.userId === "object" && content.userId?.username) {
@@ -42,6 +43,8 @@ export default function App() {
   const [publicOwner, setPublicOwner] = useState("");
   const [publicNote, setPublicNote] = useState<ContentItem | null>(null);
   const [publicNoteOwner, setPublicNoteOwner] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [publicViewMode, setPublicViewMode] = useState<PublicViewMode>("none");
 
   const sharedNotesCount = useMemo(() => items.filter((item) => Boolean(item.sharedHash)).length, [items]);
 
@@ -60,12 +63,14 @@ export default function App() {
     const boardHashFromQuery = params.get("share");
 
     if (noteHashFromQuery) {
+      setPublicViewMode("note");
       setNoteLookupHash(noteHashFromQuery);
       void handleLookupNote(noteHashFromQuery);
       return;
     }
 
     if (boardHashFromQuery) {
+      setPublicViewMode("board");
       setLookupHash(boardHashFromQuery);
       void handleLookup(boardHashFromQuery);
     }
@@ -115,12 +120,33 @@ export default function App() {
     event.preventDefault();
     if (!token) return;
 
+    const trimmedTitle = noteTitle.trim();
+    const trimmedContent = noteContent.trim();
+    const trimmedLink = referenceLink.trim();
+
+    if (!trimmedContent) {
+      setStatus("Note content is required.");
+      return;
+    }
+
+    let normalizedLink = "";
+    if (trimmedLink) {
+      try {
+        const tentativeUrl = /^https?:\/\//i.test(trimmedLink) ? trimmedLink : `https://${trimmedLink}`;
+        normalizedLink = new URL(tentativeUrl).toString();
+      } catch (error) {
+        setStatus("Reference link is not a valid URL.");
+        return;
+      }
+    }
+
+    setIsSaving(true);
     setStatus("Saving note...");
     try {
       const message = await createContent(token, {
-        title: noteTitle,
-        content: noteContent,
-        link: referenceLink
+        title: trimmedTitle,
+        content: trimmedContent,
+        link: normalizedLink
       });
       setNoteTitle("");
       setNoteContent("");
@@ -129,6 +155,8 @@ export default function App() {
       setStatus(message);
     } catch (error) {
       setStatus((error as Error).message);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -224,6 +252,72 @@ export default function App() {
     setToken("");
     setShareHash("");
     setStatus("Signed out.");
+  }
+
+  if (!token && publicViewMode !== "none") {
+    return (
+      <div className="page-shell app-shell">
+        <div className="aurora" />
+        <div className="grid-lines" />
+
+        <main className="grid" style={{ gridTemplateColumns: "1fr", maxWidth: 900, margin: "0 auto" }}>
+          <section className="card lift public-card" style={{ marginTop: "2rem" }}>
+            <h2>{publicViewMode === "note" ? "Shared Note" : "Shared Brain"}</h2>
+            <p className="muted">This view is public. No login required.</p>
+
+            {publicViewMode === "note" ? (
+              publicNote ? (
+                <article className="item public note-item featured-public-note">
+                  <div className="note-copy">
+                    <strong>{publicNote.title || "Untitled note"}</strong>
+                    <p>{publicNote.content || ""}</p>
+                    {publicNote.link ? (
+                      <a href={publicNote.link} target="_blank" rel="noreferrer">
+                        {publicNote.link}
+                      </a>
+                    ) : null}
+                    <small>Shared by @{publicNoteOwner || "unknown"}</small>
+                  </div>
+                </article>
+              ) : (
+                <p className="muted">Loading shared note...</p>
+              )
+            ) : (
+              <>
+                {publicOwner ? <p className="owner">Viewing @{publicOwner}</p> : null}
+                <div className="list-wrap">
+                  {publicItems.length === 0 ? (
+                    <p className="muted">Loading shared notes...</p>
+                  ) : (
+                    publicItems.map((item) => (
+                      <article key={item._id} className="item public note-item">
+                        <div className="note-copy">
+                          <strong>{item.title || "Untitled note"}</strong>
+                          <p>{item.content || ""}</p>
+                          {item.link ? (
+                            <a href={item.link} target="_blank" rel="noreferrer">
+                              {item.link}
+                            </a>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="row" style={{ marginTop: "1rem" }}>
+              <a href="/" className="secondary" style={{ textDecoration: "none", padding: "0.7rem 1rem" }}>
+                Open App
+              </a>
+            </div>
+          </section>
+        </main>
+
+        <footer className="status-bar">Status: {status}</footer>
+      </div>
+    );
   }
 
   if (!token) {
@@ -351,7 +445,7 @@ export default function App() {
           <h2>Notes</h2>
           <p className="muted">Write text notes, keep an optional reference link, and manage everything in one stream.</p>
 
-          <form onSubmit={handleCreateContent} className="stack">
+          <form onSubmit={handleCreateContent} className="stack" noValidate>
             <label>
               Title
               <input
@@ -374,15 +468,15 @@ export default function App() {
             <label>
               Reference link (optional)
               <input
-                type="url"
+                type="text"
                 placeholder="https://example.com"
                 value={referenceLink}
                 onChange={(e) => setReferenceLink(e.target.value)}
               />
             </label>
 
-            <button type="submit" disabled={!token}>
-              Save Note
+            <button type="submit" disabled={!token || isSaving || !noteContent.trim()}>
+              {isSaving ? "Saving..." : "Save Note"}
             </button>
           </form>
 
