@@ -148,6 +148,36 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
 	}
 });
 
+app.put("/api/v1/content/:contentId", userMiddleware, async (req, res) => {
+	try {
+		const contentId = req.params.contentId;
+		const updates: Record<string, string> = {};
+
+		if (typeof req.body.title === "string") updates.title = req.body.title.trim() || "Untitled note";
+		if (typeof req.body.content === "string" && req.body.content.trim()) updates.content = req.body.content.trim();
+		if (typeof req.body.link === "string") updates.link = req.body.link.trim();
+		if (typeof req.body.type === "string" && req.body.type.trim()) updates.type = req.body.type.trim();
+
+		const updated = await contentModel.findOneAndUpdate(
+			{
+				_id: contentId,
+				// @ts-ignore
+				userId: req.userId
+			},
+			updates,
+			{ new: true }
+		);
+
+		if (!updated) {
+			return res.status(404).json({ message: "note not found" });
+		}
+
+		return res.json({ message: "note updated", note: updated });
+	} catch (error) {
+		return res.status(500).json({ message: "failed to update note" });
+	}
+});
+
 app.post("/api/v1/content/:contentId/share", userMiddleware, async (req, res) => {
 	try {
 		const contentId = req.params.contentId;
