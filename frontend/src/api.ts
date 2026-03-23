@@ -7,9 +7,16 @@ type CreateNoteInput = {
   type?: string;
 };
 
-type UpdateNoteInput = Partial<CreateNoteInput>;
+const API_BASE = (() => {
+  const configuredBase = import.meta.env.VITE_API_BASE?.trim();
+  if (configuredBase) return configuredBase;
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+  // In Vite dev server, relative URLs go through proxy (/api -> localhost:3000).
+  if (import.meta.env.DEV) return "";
+
+  // For non-dev builds without VITE_API_BASE, use backend default port.
+  return "http://localhost:3000";
+})();
 
 function authHeaders(token?: string): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};

@@ -20,6 +20,7 @@ const HASH_PATTERN = /^[0-9a-f]{12}$/i;
 
 type AuthMode = "signin" | "signup";
 type NoteType = "all" | "note" | "tweet" | "video" | "article" | "image";
+type PublicViewMode = "none" | "note" | "board";
 
 // ─── Toast system ──────────────────────────────────────────────
 
@@ -936,6 +937,8 @@ export default function App() {
   const [publicOwner, setPublicOwner] = useState("");
   const [publicNote, setPublicNote] = useState<ContentItem | null>(null);
   const [publicNoteOwner, setPublicNoteOwner] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [publicViewMode, setPublicViewMode] = useState<PublicViewMode>("none");
 
   const { toasts, push: pushToast } = useToasts();
 
@@ -968,6 +971,21 @@ export default function App() {
     // Validate hashes match the expected 12-character hex pattern before using them
     if (noteHash && HASH_PATTERN.test(noteHash)) void handleLookupNote(noteHash);
     else if (brainHash && HASH_PATTERN.test(brainHash)) void handleLookupBrain(brainHash);
+    const noteHashFromQuery = params.get("note");
+    const boardHashFromQuery = params.get("share");
+
+    if (noteHashFromQuery) {
+      setPublicViewMode("note");
+      setNoteLookupHash(noteHashFromQuery);
+      void handleLookupNote(noteHashFromQuery);
+      return;
+    }
+
+    if (boardHashFromQuery) {
+      setPublicViewMode("board");
+      setLookupHash(boardHashFromQuery);
+      void handleLookup(boardHashFromQuery);
+    }
   }, []);
 
   useEffect(() => {
@@ -1204,6 +1222,38 @@ export default function App() {
             </button>
             <button type="button" className="btn-primary" onClick={() => setAddOpen(true)}>
               + New Note
+          <form onSubmit={handleCreateContent} className="stack" noValidate>
+            <label>
+              Title
+              <input
+                placeholder="Sprint ideas, reading notes, project plan..."
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Note
+              <textarea
+                placeholder="Write the actual note here..."
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              Reference link (optional)
+              <input
+                type="text"
+                placeholder="https://example.com"
+                value={referenceLink}
+                onChange={(e) => setReferenceLink(e.target.value)}
+              />
+            </label>
+
+            <button type="submit" disabled={!token || isSaving || !noteContent.trim()}>
+              {isSaving ? "Saving..." : "Save Note"}
             </button>
           </div>
         </header>
