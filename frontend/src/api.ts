@@ -4,6 +4,7 @@ type CreateNoteInput = {
   title: string;
   content: string;
   link?: string;
+  type?: string;
 };
 
 const API_BASE = (() => {
@@ -61,8 +62,21 @@ export async function createContent(token: string, note: CreateNoteInput): Promi
       title: note.title,
       content: note.content,
       link: note.link ?? "",
-      type: "note"
+      type: note.type ?? "note"
     })
+  });
+  const data = await parseResponse<{ message: string }>(response);
+  return data.message;
+}
+
+export async function updateContent(token: string, contentId: string, note: UpdateNoteInput): Promise<string> {
+  const response = await fetch(`${API_BASE}/api/v1/content/${contentId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token)
+    },
+    body: JSON.stringify(note)
   });
   const data = await parseResponse<{ message: string }>(response);
   return data.message;

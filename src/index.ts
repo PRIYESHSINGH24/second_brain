@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { connectDB, contentModel, linkModel, userModel } from "./db.js";
@@ -21,7 +22,26 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-app.post("/api/v1/signup", async (req, res) => {
+// ─── Rate limiters ────────────────────────────────────────────
+// Strict limiter for auth endpoints (20 requests per 15 minutes)
+const authLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	max: 20,
+	message: { message: "Too many requests, please try again later." },
+	standardHeaders: true,
+	legacyHeaders: false
+});
+
+// General limiter for authenticated mutating endpoints (60 per minute)
+const apiLimiter = rateLimit({
+	windowMs: 60 * 1000,
+	max: 60,
+	message: { message: "Too many requests, please try again later." },
+	standardHeaders: true,
+	legacyHeaders: false
+});
+
+app.post("/api/v1/signup", authLimiter, async (req, res) => {
 	const username = req.body.username;
 	const password = req.body.password;
 
@@ -47,7 +67,7 @@ app.post("/api/v1/signup", async (req, res) => {
 	}
 });
 
-app.post("/api/v1/signin", async (req, res) => {
+app.post("/api/v1/signin", authLimiter, async (req, res) => {
 	const username = req.body.username;
 	const password = req.body.password;
 
@@ -75,7 +95,7 @@ app.post("/api/v1/signin", async (req, res) => {
 	});
 });
 
-app.post("/api/v1/content", userMiddleware, async (req, res) => {
+app.post("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
 	try {
 		const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
 		const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
@@ -108,7 +128,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
 	}
 });
 
-app.get("/api/v1/content", userMiddleware, async (req, res) => {
+app.get("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
 	try {
 		const content = await contentModel
 			.find({
@@ -128,7 +148,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
 	}
 });
 
-app.delete("/api/v1/content", userMiddleware, async (req, res) => {
+app.delete("/api/v1/content", apiLimiter, userMiddleware, async (req, res) => {
 	try {
 		const contentId = req.body.contentId;
 
@@ -160,7 +180,37 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
 	}
 });
 
-app.post("/api/v1/content/:contentId/share", userMiddleware, async (req, res) => {
+app.put("/api/v1/content/:contentId", apiLimiter, userMiddleware, async (req, res) => {
+	try {
+		const contentId = req.params.contentId;
+		const updates: Record<string, string> = {};
+
+		if (typeof req.body.title === "string") updates.title = req.body.title.trim() || "Untitled note";
+		if (typeof req.body.content === "string" && req.body.content.trim()) updates.content = req.body.content.trim();
+		if (typeof req.body.link === "string") updates.link = req.body.link.trim();
+		if (typeof req.body.type === "string" && req.body.type.trim()) updates.type = req.body.type.trim();
+
+		const updated = await contentModel.findOneAndUpdate(
+			{
+				_id: contentId,
+				// @ts-ignore
+				userId: req.userId
+			},
+			updates,
+			{ new: true }
+		);
+
+		if (!updated) {
+			return res.status(404).json({ message: "note not found" });
+		}
+
+		return res.json({ message: "note updated", note: updated });
+	} catch (error) {
+		return res.status(500).json({ message: "failed to update note" });
+	}
+});
+
+app.post("/api/v1/content/:contentId/share", apiLimiter, userMiddleware, async (req, res) => {
 	try {
 		const contentId = req.params.contentId;
 		const note = await contentModel.findOne({
@@ -190,7 +240,7 @@ app.post("/api/v1/content/:contentId/share", userMiddleware, async (req, res) =>
 	}
 });
 
-app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
+app.post("/api/v1/brain/share", apiLimiter, userMiddleware, async (req, res) => {
 	try {
 		const share = req.body.share;
 		// @ts-ignore
@@ -227,9 +277,9 @@ app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
 	}
 });
 
-app.get("/api/v1/brain/:shareLink", async (req, res) => {
+app.get("/api/v1/brain/:shareLink", apiLimiter, async (req, res) => {
 	try {
-		const hash = req.params.shareLink;
+		const hash = String(req.params.shareLink);
 		const link = await linkModel.findOne({ hash });
 
 		if (!link) {
@@ -252,9 +302,9 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
 	}
 });
 
-app.get("/api/v1/content/share/:shareLink", async (req, res) => {
+app.get("/api/v1/content/share/:shareLink", apiLimiter, async (req, res) => {
 	try {
-		const hash = req.params.shareLink;
+		const hash = String(req.params.shareLink);
 		const sharedNote = await contentModel.findOne({ sharedHash: hash }).populate("userId", "username");
 
 		if (!sharedNote) {
